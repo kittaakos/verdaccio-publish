@@ -59,3 +59,11 @@ typings/
 
 # next.js build output
 .next
+
+/publisher-cli/node_modules/
+/publisher-cli/.storage/
+/publisher-cli/htpasswd/
+
+/publisher-node-api/node_modules/
+/publisher-node-api/.storage/
+/publisher-node-api/htpasswd/

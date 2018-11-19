@@ -1,0 +1,19 @@
+{
+  "name": "publisher-node-api",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "node index.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "npm-cli-login": "^0.0.10",
+    "shelljs": "^0.8.3",
+    "sleep": "^5.2.3",
+    "uuid": "^3.3.2",
+    "verdaccio": "^3.8.6"
+  }
+}
