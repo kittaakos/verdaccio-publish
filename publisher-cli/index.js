@@ -8,8 +8,6 @@ const uuid = require('uuid');
 const shell = require('shelljs');
 const request = require('request');
 const npmLogin = require('npm-cli-login');
-const utils = require('verdaccio/build/lib/utils');
-const startServer = require('verdaccio').default;
 
 const windows = /^win/.test(process.platform);
 const NPM_REGISTRY = 'http://localhost:4873'
@@ -28,42 +26,41 @@ fs.writeFileSync(path.join(__dirname, 'htpasswd'), '', { encoding: 'utf8' });
 
 
 let serverProcess;
-try {
-    const verdaccioExecPath = path.join(__dirname, 'node_modules', '.bin', `verdaccio${windows ? '.cmd' : ''}`);
-    const verdaccioConfigPath = path.join(__dirname, 'verdaccio-config.yml');
-    serverProcess = cp.spawn(verdaccioExecPath, ['--config', verdaccioConfigPath], { stdio: 'inherit' });
-    shell.echo('Waiting for the NPM registry startup.');
-    if (windows) {
-        shell.echo("Cannot use 'curl' on Windows to poll the NPM registry. Waiting for 5 seconds instead...");
-        require('sleep').sleep(5); // Sleep for 5 seconds on Windows. TODO: The current approach is a crap.
-    } else {
-        exec(`until $(curl --output /dev/null --silent --head --fail ${NPM_REGISTRY}); do     printf '.';     sleep .5; done`);
-    }
 
-    // Add a dummy user to the registry and log in.
-    const username = uuid.v4();
-    const password = uuid.v4();
-    addUser(username, password, NPM_REGISTRY, () => {
-        // Publish the private dependencies.
-        [
-            {
-                path: path.join(__dirname, '..', 'my-private-package'),
-                version: '1.0.0'
-            }
-        ].forEach(entry => {
-            const name = path.basename(entry.path);
-            shell.echo(`Publishing '${name}' into the private NPM registry.`);
-            exec(`yarn --cwd ${entry.path} publish --registry ${NPM_REGISTRY} --no-git-tag-version --non-interactive --ignore-scripts --new-version ${entry.version}`);
-        });
-
-        // Use the private NPM registry to install dependencies:
-        shell.echo('🎉');
-    });
-} finally {
-    if (serverProcess) {
-        serverProcess.kill();
-    }
+const verdaccioExecPath = path.join(__dirname, 'node_modules', '.bin', `verdaccio${windows ? '.cmd' : ''}`);
+const verdaccioConfigPath = path.join(__dirname, 'verdaccio-config.yml');
+serverProcess = cp.spawn(verdaccioExecPath, ['--config', verdaccioConfigPath], { stdio: 'inherit' });
+shell.echo('Waiting for the NPM registry startup.');
+if (windows) {
+    shell.echo("Cannot use 'curl' on Windows to poll the NPM registry. Waiting for 5 seconds instead...");
+    require('sleep').sleep(5); // Sleep for 5 seconds on Windows. TODO: The current approach is a crap.
+} else {
+    exec(`until $(curl --output /dev/null --silent --head --fail ${NPM_REGISTRY}); do     printf '.';     sleep .5; done`);
 }
+
+// Add a dummy user to the registry and log in.
+const username = uuid.v4();
+const password = uuid.v4();
+addUser(username, password, NPM_REGISTRY, () => {
+    // Publish the private dependencies.
+    [
+        {
+            path: path.join(__dirname, '..', 'my-private-package'),
+            version: '1.0.0'
+        }
+    ].forEach(entry => {
+        const name = path.basename(entry.path);
+        shell.echo(`Publishing '${name}' into the private NPM registry.`);
+        exec(`yarn --cwd ${entry.path} publish --registry ${NPM_REGISTRY} --no-git-tag-version --non-interactive --ignore-scripts --new-version ${entry.version}`);
+    });
+
+    // Use the private NPM registry to install dependencies:
+    shell.echo('🎉');
+    if (serverProcess) {
+        process.kill(serverProcess.pid);
+        serverProcess = undefined;
+    }
+});
 
 /**
  * `registry` must not have the trailing `/`.
